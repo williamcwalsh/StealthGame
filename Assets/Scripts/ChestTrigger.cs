@@ -1,12 +1,16 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class ChestTrigger : MonoBehaviour
 {
     public TMP_Text lockedText;
+    public string nextSceneName = "level2";
 
     private Animator animator;
     private bool opened = false;
+    private bool loadingNextScene = false;
 
     void Start()
     {
@@ -79,8 +83,9 @@ public class ChestTrigger : MonoBehaviour
 
         Debug.Log("[ChestTrigger] Opening chest because the player has the key.", this);
 
-        animator.SetTrigger("OpenChest");
         opened = true;
+        animator.SetTrigger("OpenChest");
+        StartCoroutine(LoadNextSceneAfterChestOpens());
     }
 
     void OnTriggerExit2D(Collider2D other)
@@ -110,5 +115,41 @@ public class ChestTrigger : MonoBehaviour
                 this
             );
         }
+    }
+
+    IEnumerator LoadNextSceneAfterChestOpens()
+    {
+        if (loadingNextScene)
+            yield break;
+
+        loadingNextScene = true;
+
+        if (animator == null)
+        {
+            Debug.LogWarning("[ChestTrigger] No Animator found. Loading next scene immediately.", this);
+            SceneManager.LoadScene(nextSceneName);
+            yield break;
+        }
+
+        yield return null;
+
+        while (animator.IsInTransition(0))
+            yield return null;
+
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        while (!stateInfo.IsName("Chest"))
+        {
+            yield return null;
+            stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        }
+
+        while (animator.IsInTransition(0) || stateInfo.normalizedTime < 1f)
+        {
+            yield return null;
+            stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        }
+
+        Debug.Log($"[ChestTrigger] Chest animation finished. Loading scene '{nextSceneName}'.", this);
+        SceneManager.LoadScene(nextSceneName);
     }
 }
